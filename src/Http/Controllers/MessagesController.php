@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request as FacadesRequest;
 use Illuminate\Support\Str;
+
 class MessagesController extends Controller
 {
     protected $perPage = 30;
@@ -60,7 +61,7 @@ class MessagesController extends Controller
     public function idFetchData(Request $request)
     {
         $favorite = Chatify::inFavorite($request['id']);
-        $fetch = User::where('id', $request['id'])->first();
+        $fetch = User::where('_id', $request['id'])->first();
         if($fetch){
             $userAvatar = Chatify::getUserWithAvatar($fetch)->avatar;
         }
@@ -221,25 +222,36 @@ class MessagesController extends Controller
     public function getContacts(Request $request)
     {
         // get all users that received/sent message from/to [Auth user]
-        $users = Message::join('users',  function ($join) {
-            $join->on('ch_messages.from_id', '=', 'users.id')
-                ->orOn('ch_messages.to_id', '=', 'users.id');
-        })
-        ->where(function ($q) {
-            $q->where('ch_messages.from_id', Auth::user()->id)
-            ->orWhere('ch_messages.to_id', Auth::user()->id);
-        })
-        ->where('users.id','!=',Auth::user()->id)
-        ->select('users.*',DB::raw('MAX(ch_messages.created_at) max_created_at'))
-        ->orderBy('max_created_at', 'desc')
-        ->groupBy('users.id')
-        ->paginate($request->per_page ?? $this->perPage);
+//        $users = Message::join('users',  function ($join) {
+//            $join->on('ch_messages.from_id', '=', 'users.id')
+//                ->orOn('ch_messages.to_id', '=', 'users.id');
+//        })
+//        ->where(function ($q) {
+//            $q->where('ch_messages.from_id', Auth::user()->id)
+//            ->orWhere('ch_messages.to_id', Auth::user()->id);
+//        })
+//        ->where('users.id','!=',Auth::user()->id)
+//        ->select('users.*',DB::raw('MAX(ch_messages.created_at) max_created_at'))
+//        ->orderBy('max_created_at', 'desc')
+//        ->groupBy('users.id')
+//        ->paginate($request->per_page ?? $this->perPage);
 
-        $usersList = $users->items();
+        $contact_ids = Message::where('from_id', Auth::user()->id)
+            ->orWhere('to_id', Auth::user()->id)
+            ->select('from_id', 'to_id')
+            ->get();
+
+        $from_ids = $contact_ids->pluck('from_id')->toArray();
+        $to_ids = $contact_ids->pluck('to_id')->toArray();
+
+//        $usersList = $users->items();
+        $usersList = array_unique(array_merge($from_ids, $to_ids));
+
 
         if (count($usersList) > 0) {
+            $users = User::whereIn('_id', $usersList)->get();
             $contacts = '';
-            foreach ($usersList as $user) {
+            foreach ($users as $user) {
                 $contacts .= Chatify::getContactItem($user);
             }
         } else {
@@ -248,8 +260,9 @@ class MessagesController extends Controller
 
         return Response::json([
             'contacts' => $contacts,
-            'total' => $users->total() ?? 0,
-            'last_page' => $users->lastPage() ?? 1,
+            'total' => count($usersList) ?? 0,
+//            'last_page' => $users->lastPage() ?? 1,
+            'last_page' => 1,
         ], 200);
     }
 
