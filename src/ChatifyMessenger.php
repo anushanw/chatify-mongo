@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Pusher\Pusher;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 
 class ChatifyMessenger
 {
@@ -195,8 +196,13 @@ class ChatifyMessenger
      */
     public function fetchMessagesQuery($user_id)
     {
-        return Message::where('from_id', Auth::user()->id)->where('to_id', $user_id)
-                    ->orWhere('from_id', $user_id)->where('to_id', Auth::user()->id);
+        return Message::where(function (Builder $query) use ($user_id) {
+            $query->where('from_id', Auth::user()->id)
+                ->where('to_id', $user_id);
+        })->orWhere(function (Builder $query) use ($user_id) {
+                $query->where('to_id', Auth::user()->id)
+                    ->where('from_id', $user_id);
+        });
     }
 
     /**
