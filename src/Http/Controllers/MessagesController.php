@@ -275,7 +275,7 @@ class MessagesController extends Controller
     public function updateContactItem(Request $request)
     {
         // Get user data
-        $user = User::where('id', $request['user_id'])->first();
+        $user = User::where('_id', $request['user_id'])->first();
         if(!$user){
             return Response::json([
                 'message' => 'User not found!',
