@@ -9,5 +9,5 @@ class ChFavorite extends Model
 {
     use UUID;
 
-    protected $primaryKey = 'id';
+    protected $primaryKey = '_id';
 }
